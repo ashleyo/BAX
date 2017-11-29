@@ -1,17 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.CompilerServices;
 
-[assembly: InternalsVisibleTo("UnitTestProject1")]
-namespace BankAccountExample
+namespace BankAccountExampleInterfaces
 {
+
     class ManageAccounts
     {
         static void Main(string[] args)
         {
             Customer C = new Customer { Name = "Test1" };
-            Account AC = new CurrentAccount(C);
+            IAccount AC = new CurrentAccount(C);
             AC.Deposit(500M);
             AC.Withdraw(34.99M);
 
@@ -28,14 +27,7 @@ namespace BankAccountExample
             foreach (int i in Enumerable.Range(1, 3)) AC.Withdraw(50M);
 
             PremiumSavingsAccount PSA;
-            PSA = new PremiumSavingsAccount(new Customer()
-                                            {
-                                                Name = "G Mugabe",
-                                            })
-            {
-                MinBalForInterest = 200M,
-                InterestRate = 0.04M
-            };
+            PSA = new PremiumSavingsAccount(new Customer() { Name = "G Mugabe" });
             PSA.Deposit(1000M);
             PSA.PayInterest();
             PSA.Withdraw(900M);
@@ -46,7 +38,6 @@ namespace BankAccountExample
                                         new Customer() {Name="Tom"},
                                         new Customer() {Name="Dick"},
                                         new Customer() {Name="Harry"}});
-            NAC.Deposit(9999M);
 
 
             AllAccounts.ListAll();
@@ -56,7 +47,7 @@ namespace BankAccountExample
         }
     }
 
-    internal class Customer
+    class Customer
     {
         public string Name { get; set; }
     }
@@ -91,7 +82,19 @@ namespace BankAccountExample
         }
     }
 
-    abstract class Account
+    //Interface/ABC split
+    //The ABC should deal with things for which a concrete implementation works - name, account number
+    //The interface should deal with required behaviours Deposit() Withdraw()
+    //Balance is a midway case ....
+
+    interface IAccount
+    {
+        void Deposit(decimal amount);
+        void Withdraw(decimal amount);
+        string GetAccountType { get; }
+    }
+
+    abstract class Account: IAccount
     {
         // Implemented
         private static int anb = 0;
@@ -108,27 +111,14 @@ namespace BankAccountExample
         public List<Customer> AccountHolders = new List<Customer>();
         public string AccountNumber { get; set; }
         public Decimal Balance { get; set; }
-
-        //part delegated
-
-        public virtual void Deposit(Decimal amount)
-        {
-            Balance += amount;
-            AllAccounts.LogTransaction(this, amount, "Deposit");
-        }
-        public virtual void Withdraw(Decimal amount)
-        {
-            Balance -= amount;
-            AllAccounts.LogTransaction(this, amount, "Withdrawal");
-        }
-
-        //delegated
-        abstract public string AccountType { get; }
+        public string GetAccountType { get; }
+        public void Deposit(decimal amount) => Balance += amount;
+        public void Withdraw(decimal amount) => Balance -= amount;
     }
 
-    internal class CurrentAccount : Account
+    class CurrentAccount : Account
     {
-        public override string AccountType => "Current";
+        public new string GetAccountType => "Current";
         public Decimal OverdraftLimit { get; set; }
 
         public CurrentAccount(Customer C) : base(C) { OverdraftLimit = 0M; }
@@ -137,16 +127,16 @@ namespace BankAccountExample
             AccountHolders.AddRange(customers.Skip(1));
         }
 
-        public override void Deposit(decimal amount)
+        public void Deposit(decimal amount)
         {
-            base.Deposit(amount);
+            Balance += amount;
         }
 
-        public override void Withdraw(decimal amount)
+        public void Withdraw(decimal amount)
         {
             if (Balance - amount + OverdraftLimit >= 0M)
             {
-                base.Withdraw(amount);
+                Balance -= amount;
             }
             else
             {
@@ -156,22 +146,22 @@ namespace BankAccountExample
 
     }
 
-    class SavingsAccount : Account
+    class SavingsAccount : Account, IAccount
     {
-        public override string AccountType => "Savings";
+        public string GetAccountType => "Savings";
         public SavingsAccount(Customer C) : base(C) { }
         public SavingsAccount(List<Customer> customers) : this(customers[0])
         {
             AccountHolders.AddRange(customers.Skip(1));
         }
 
-        public override void Deposit(decimal amount) => base.Deposit(amount);
+        public void Deposit(decimal amount) => Balance += amount;
 
-        public override void Withdraw(decimal amount)
+        public void Withdraw(decimal amount)
         {
             if (Balance - amount >= 0)
             {
-                base.Withdraw(amount);
+                Balance -= amount;
             }
             else
             {
@@ -181,11 +171,11 @@ namespace BankAccountExample
 
     }
 
-    class PremiumSavingsAccount : Account
+    class PremiumSavingsAccount : Account, IAccount
     {
-        public decimal MinBalForInterest { get; set; }
-        public decimal InterestRate { get; set; }
-        public override string AccountType => "PremiumSavings";
+        public static decimal MinBalForInterest => 200M;
+        public static decimal InterestRate => 0.04M;
+        public string GetAccountType => "PremiumSavings";
 
         public PremiumSavingsAccount(Customer C) : base(C) { }
         public PremiumSavingsAccount(List<Customer> customers) : this(customers[0])
@@ -193,13 +183,13 @@ namespace BankAccountExample
             AccountHolders.AddRange(customers.Skip(1));
         }
 
-        public override void Deposit(decimal amount) => base.Deposit(amount);
+        public void Deposit(decimal amount) => Balance += amount;
 
-        public override void Withdraw(decimal amount)
+        public void Withdraw(decimal amount)
         {
             if (Balance - amount >= 0)
             {
-                base.Withdraw(amount);
+                Balance -= amount;
             }
             else
             {
@@ -214,4 +204,6 @@ namespace BankAccountExample
             AllAccounts.LogTransaction(this, interest, "Interest");
         }
     }
+
+
 }
